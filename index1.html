@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>F1 HAND TRACKING – OVAL</title>
+
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { overflow:hidden; background:#000; font-family:'Orbitron',sans-serif; }
+
+    #hud {
+      position:absolute; top:0; left:0; right:0; z-index:999;
+      display:flex; justify-content:space-between; align-items:flex-start;
+      padding:14px 20px; pointer-events:none;
+      background:linear-gradient(to bottom,rgba(0,0,0,0.72) 0%,transparent 100%);
+    }
+    #cam-box {
+      width:190px; border:2px solid rgba(255,255,255,0.22); border-radius:8px;
+      overflow:hidden; box-shadow:0 0 18px rgba(255,80,0,0.4);
+    }
+    #video { width:100%; display:block; }
+
+    #gestures {
+      display:flex; flex-direction:column; gap:7px;
+      background:rgba(0,0,0,0.62); border:1px solid rgba(255,255,255,0.1);
+      border-radius:10px; padding:10px 16px; backdrop-filter:blur(6px);
+    }
+    .g-row { display:flex; align-items:center; gap:9px; font-size:11px; color:rgba(255,255,255,0.5); letter-spacing:1px; }
+    .g-icon { font-size:20px; width:26px; text-align:center; }
+
+    #counters { display:flex; flex-direction:column; gap:10px; align-items:flex-end; }
+    .badge {
+      display:flex; align-items:center; gap:10px;
+      background:rgba(0,0,0,0.65); border:1px solid rgba(255,255,255,0.12);
+      border-radius:10px; padding:8px 16px; backdrop-filter:blur(6px);
+    }
+    .badge-icon { font-size:22px; }
+    .badge-label { font-size:10px; letter-spacing:2px; color:rgba(255,255,255,0.4); text-transform:uppercase; }
+    .badge-value { font-size:24px; font-weight:900; }
+    #badge-gold .badge-value { color:#FFD700; text-shadow:0 0 10px #FFD700; }
+    #badge-gem  .badge-value { color:#7DF9FF; text-shadow:0 0 10px #7DF9FF; }
+  </style>
+</head>
+<body>
+
+<div id="hud">
+  <div id="cam-box"><video id="video" autoplay playsinline></video></div>
+
+  <div id="gestures">
+    <div class="g-row"><span class="g-icon">🤚</span><span>MÃO CIMA → FRENTE</span></div>
+    <div class="g-row"><span class="g-icon">🤚</span><span>MÃO BAIXO → RÉ</span></div>
+    <div class="g-row"><span class="g-icon">🤚</span><span>MÃO ESQ → VIRAR ESQ</span></div>
+    <div class="g-row"><span class="g-icon">🤚</span><span>MÃO DIR → VIRAR DIR</span></div>
+  </div>
+
+  <div id="counters">
+    <div class="badge" id="badge-gold">
+      <span class="badge-icon">🥇</span>
+      <div><div class="badge-label">Ouro</div><div class="badge-value" id="cnt-gold">0</div></div>
+    </div>
+    <div class="badge" id="badge-gem">
+      <span class="badge-icon">💎</span>
+      <div><div class="badge-label">Diamante</div><div class="badge-value" id="cnt-gem">0</div></div>
+    </div>
+  </div>
+</div>
+
+<a-scene>
+  <a-sky color="#0a0a18"></a-sky>
+
+  <!-- GRAMA -->
+  <a-plane rotation="-90 0 0" width="300" height="300" color="#1a2e1a"></a-plane>
+
+  <!-- ============================================================ -->
+  <!-- PISTA OVAL – montada com cilindros e planos                  -->
+  <!-- Outer ellipse ~: raioX=28, raioZ=40                          -->
+  <!-- Inner ellipse ~: raioX=18, raioZ=28                          -->
+  <!-- Retas laterais: z de -20 a 20                               -->
+  <!-- ============================================================ -->
+
+  <!-- ASFALTO RETA DIREITA (x positivo) -->
+  <a-plane rotation="-90 0 0" position="23 0.02 0" width="10" height="40" color="#2a2a2a"></a-plane>
+  <!-- ASFALTO RETA ESQUERDA -->
+  <a-plane rotation="-90 0 0" position="-23 0.02 0" width="10" height="40" color="#2a2a2a"></a-plane>
+
+  <!-- ASFALTO CURVA TOPO (semicírculo 180°) – aproximado com cilindro oco via dois cilindros -->
+  <!-- Cilindro externo cheio, por cima do interno (grama), formam o anel da pista -->
+  <a-cylinder position="0 0.01 -20" radius="28" height="0.04" color="#2a2a2a" segments-radial="64"></a-cylinder>
+  <a-cylinder position="0 0.02 -20" radius="18" height="0.05" color="#1a2e1a" segments-radial="64"></a-cylinder>
+
+  <!-- ASFALTO CURVA BAIXO -->
+  <a-cylinder position="0 0.01 20" radius="28" height="0.04" color="#2a2a2a" segments-radial="64"></a-cylinder>
+  <a-cylinder position="0 0.02 20" radius="18" height="0.05" color="#1a2e1a" segments-radial="64"></a-cylinder>
+
+  <!-- ILHA CENTRAL (entre as duas retas) -->
+  <a-plane rotation="-90 0 0" position="0 0.01 0" width="36" height="40" color="#1a2e1a"></a-plane>
+
+  <!-- LINHAS CENTRAIS AMARELAS (dashed look) -->
+  <!-- Reta direita -->
+  <a-plane rotation="-90 0 0" position="23 0.04 -10" width="0.35" height="10" color="#FFD700" opacity="0.8"></a-plane>
+  <a-plane rotation="-90 0 0" position="23 0.04 0"   width="0.35" height="10" color="#FFD700" opacity="0.8"></a-plane>
+  <a-plane rotation="-90 0 0" position="23 0.04 10"  width="0.35" height="10" color="#FFD700" opacity="0.8"></a-plane>
+  <!-- Reta esquerda -->
+  <a-plane rotation="-90 0 0" position="-23 0.04 -10" width="0.35" height="10" color="#FFD700" opacity="0.8"></a-plane>
+  <a-plane rotation="-90 0 0" position="-23 0.04 0"   width="0.35" height="10" color="#FFD700" opacity="0.8"></a-plane>
+  <a-plane rotation="-90 0 0" position="-23 0.04 10"  width="0.35" height="10" color="#FFD700" opacity="0.8"></a-plane>
+
+  <!-- LINHA DE LARGADA -->
+  <a-plane rotation="-90 0 0" position="23 0.05 3" width="10" height="0.7" color="white"></a-plane>
+  <a-plane rotation="-90 0 0" position="23 0.05 3" width="10" height="0.25" color="#cc2200" opacity="0.8"></a-plane>
+
+  <!-- ============================================================ -->
+  <!-- GUARD-RAILS – paredes visuais                                -->
+  <!-- ============================================================ -->
+
+  <!-- Reta direita – externo -->
+  <a-box position="28.3 0.8 0"  width="0.5" height="1.6" depth="40" color="#cc2200"></a-box>
+  <a-box position="28.3 1.45 0" width="0.55" height="0.2" depth="40" color="white" opacity="0.5"></a-box>
+  <!-- Reta direita – interno -->
+  <a-box position="17.7 0.8 0"  width="0.5" height="1.6" depth="40" color="#cc2200"></a-box>
+  <a-box position="17.7 1.45 0" width="0.55" height="0.2" depth="40" color="white" opacity="0.5"></a-box>
+
+  <!-- Reta esquerda – externo -->
+  <a-box position="-28.3 0.8 0"  width="0.5" height="1.6" depth="40" color="#cc2200"></a-box>
+  <a-box position="-28.3 1.45 0" width="0.55" height="0.2" depth="40" color="white" opacity="0.5"></a-box>
+  <!-- Reta esquerda – interno -->
+  <a-box position="-17.7 0.8 0"  width="0.5" height="1.6" depth="40" color="#cc2200"></a-box>
+  <a-box position="-17.7 1.45 0" width="0.55" height="0.2" depth="40" color="white" opacity="0.5"></a-box>
+
+  <!-- Guard-rails curvos (aproximados com segmentos) -->
+  <!-- Curva topo externa (raio ~28, centro 0,-20) – 12 segmentos -->
+  <a-box position="14  0.8 -44.2" width="14" height="1.6" depth="0.5" color="#cc2200" rotation="0 -30 0"></a-box>
+  <a-box position="0   0.8 -48.1" width="14" height="1.6" depth="0.5" color="#cc2200"></a-box>
+  <a-box position="-14 0.8 -44.2" width="14" height="1.6" depth="0.5" color="#cc2200" rotation="0 30 0"></a-box>
+  <a-box position="24  0.8 -34"   width="10" height="1.6" depth="0.5" color="#cc2200" rotation="0 -60 0"></a-box>
+  <a-box position="-24 0.8 -34"   width="10" height="1.6" depth="0.5" color="#cc2200" rotation="0 60 0"></a-box>
+
+  <!-- Curva topo interna (raio ~18, centro 0,-20) -->
+  <a-box position="9   0.8 -36.1" width="12" height="1.6" depth="0.5" color="#cc2200" rotation="0 -30 0"></a-box>
+  <a-box position="0   0.8 -38.1" width="12" height="1.6" depth="0.5" color="#cc2200"></a-box>
+  <a-box position="-9  0.8 -36.1" width="12" height="1.6" depth="0.5" color="#cc2200" rotation="0 30 0"></a-box>
+  <a-box position="16  0.8 -27.5" width="8"  height="1.6" depth="0.5" color="#cc2200" rotation="0 -60 0"></a-box>
+  <a-box position="-16 0.8 -27.5" width="8"  height="1.6" depth="0.5" color="#cc2200" rotation="0 60 0"></a-box>
+
+  <!-- Curva baixo externa -->
+  <a-box position="14  0.8 44.2" width="14" height="1.6" depth="0.5" color="#cc2200" rotation="0 30 0"></a-box>
+  <a-box position="0   0.8 48.1" width="14" height="1.6" depth="0.5" color="#cc2200"></a-box>
+  <a-box position="-14 0.8 44.2" width="14" height="1.6" depth="0.5" color="#cc2200" rotation="0 -30 0"></a-box>
+  <a-box position="24  0.8 34"   width="10" height="1.6" depth="0.5" color="#cc2200" rotation="0 60 0"></a-box>
+  <a-box position="-24 0.8 34"   width="10" height="1.6" depth="0.5" color="#cc2200" rotation="0 -60 0"></a-box>
+
+  <!-- Curva baixo interna -->
+  <a-box position="9   0.8 36.1" width="12" height="1.6" depth="0.5" color="#cc2200" rotation="0 30 0"></a-box>
+  <a-box position="0   0.8 38.1" width="12" height="1.6" depth="0.5" color="#cc2200"></a-box>
+  <a-box position="-9  0.8 36.1" width="12" height="1.6" depth="0.5" color="#cc2200" rotation="0 -30 0"></a-box>
+  <a-box position="16  0.8 27.5" width="8"  height="1.6" depth="0.5" color="#cc2200" rotation="0 60 0"></a-box>
+  <a-box position="-16 0.8 27.5" width="8"  height="1.6" depth="0.5" color="#cc2200" rotation="0 -60 0"></a-box>
+
+  <!-- ============================================================ -->
+  <!-- ARQUIBANCADAS -->
+  <!-- ============================================================ -->
+  <a-box position="0 2.5 -20" width="20" height="5" depth="6" color="#1a1a3a"></a-box>
+  <a-box position="0 2.5 20"  width="20" height="5" depth="6" color="#1a1a3a"></a-box>
+
+  <!-- ============================================================ -->
+  <!-- CÂMERA -->
+  <!-- ============================================================ -->
+  <a-entity id="cameraPer" position="23 3 11">
+    <a-camera wasd-controls-enabled="false" look-controls="enabled:false"></a-camera>
+  </a-entity>
+
+  <!-- ============================================================ -->
+  <!-- CARRO F1 -->
+  <!-- ============================================================ -->
+  <a-entity id="carro" position="23 0.5 0" rotation="0 0 0">
+    <a-box position="0 0 0" width="1.2" height="0.3" depth="3" color="red"></a-box>
+    <a-box position="0 0.35 -0.3" width="0.8" height="0.35" depth="1" color="#222"></a-box>
+    <a-box position="0 0.12 -1.8" width="0.3" height="0.15" depth="1" color="red"></a-box>
+    <a-box position="0 0.08 -2.4" width="2.2" height="0.06" depth="0.4" color="black"></a-box>
+    <a-box position="0 0.4 1" width="0.9" height="0.35" depth="0.8" color="#990000"></a-box>
+    <a-box position="0 0.85 1.7" width="1.8" height="0.08" depth="0.25" color="black"></a-box>
+    <a-cylinder position="0.65  -0.05 -1.15" radius="0.03" height="0.55" rotation="0 0 55"  color="gray"></a-cylinder>
+    <a-cylinder position="0.55  -0.05 -1.15" radius="0.03" height="0.55" rotation="0 0 -55" color="gray"></a-cylinder>
+    <a-cylinder position="-0.65 -0.05 -1.15" radius="0.03" height="0.55" rotation="0 0 -55" color="gray"></a-cylinder>
+    <a-cylinder position="-0.55 -0.05 -1.15" radius="0.03" height="0.55" rotation="0 0 55"  color="gray"></a-cylinder>
+    <a-cylinder position="0.7  -0.05 1"  radius="0.03" height="0.65" rotation="0 0 55"  color="gray"></a-cylinder>
+    <a-cylinder position="0.55 -0.05 1"  radius="0.03" height="0.65" rotation="0 0 -55" color="gray"></a-cylinder>
+    <a-cylinder position="-0.7  -0.05 1" radius="0.03" height="0.65" rotation="0 0 -55" color="gray"></a-cylinder>
+    <a-cylinder position="-0.55 -0.05 1" radius="0.03" height="0.65" rotation="0 0 55"  color="gray"></a-cylinder>
+    <a-cylinder id="roda-fd" position="1  -0.28 -1.15" radius="0.33" height="0.22" rotation="0 0 90" color="black"></a-cylinder>
+    <a-cylinder id="roda-fe" position="-1 -0.28 -1.15" radius="0.33" height="0.22" rotation="0 0 90" color="black"></a-cylinder>
+    <a-cylinder id="roda-td" position="1  -0.3 1"  radius="0.42" height="0.28" rotation="0 0 90" color="black"></a-cylinder>
+    <a-cylinder id="roda-te" position="-1 -0.3 1"  radius="0.42" height="0.28" rotation="0 0 90" color="black"></a-cylinder>
+  </a-entity>
+
+  <!-- coletáveis injetados por JS -->
+  <a-entity id="coletaveis"></a-entity>
+
+</a-scene>
+
+<script>
+window.onload = function(){
+
+  const carro   = document.getElementById("carro");
+  const cam     = document.getElementById("cameraPer");
+  const videoEl = document.getElementById("video");
+  const cntGold = document.getElementById("cnt-gold");
+  const cntGem  = document.getElementById("cnt-gem");
+  const container = document.getElementById("coletaveis");
+
+  const rodas = [
+    document.getElementById("roda-fd"),
+    document.getElementById("roda-fe"),
+    document.getElementById("roda-td"),
+    document.getElementById("roda-te"),
+  ];
+
+  // carro começa na reta direita
+  let posx = 23, posz = 0;
+  let angulo = 0;
+  let rodarot = 0;
+  const vel  = 0.15;
+  const giro = 2.5;
+
+  let goldCount = 0;
+  let gemCount  = 0;
+
+  // ============================================================
+  // COLISÃO OVAL
+  // Pista oval: reta direita x=[18,28] z=[-20,20]
+  //             reta esq    x=[-28,-18] z=[-20,20]
+  //             curva topo  centro (0,-20) outer=28 inner=18
+  //             curva baixo centro (0, 20) outer=28 inner=18
+  // Fora da pista = fora do outer OU dentro do inner OU na ilha central
+  // ============================================================
+
+  const OUTER_X = 28, OUTER_Z_CURVE = 28; // curva
+  const INNER_X = 18, INNER_Z_CURVE = 18;
+  const STRAIGHT_Z1 = -20, STRAIGHT_Z2 = 20;
+  const STRAIGHT_XMIN = 18, STRAIGHT_XMAX = 28;
+
+  function foraOval(x, z){
+    // Nas retas
+    if(z >= STRAIGHT_Z1 && z <= STRAIGHT_Z2){
+      // reta direita
+      if(x >= STRAIGHT_XMIN && x <= STRAIGHT_XMAX) return false;
+      // reta esquerda
+      if(x >= -STRAIGHT_XMAX && x <= -STRAIGHT_XMIN) return false;
+      return true; // no meio ou fora
+    }
+
+    // Curva topo (z < -20): centro (0, -20)
+    if(z < STRAIGHT_Z1){
+      const cx = 0, cz = -20;
+      const nx = x - cx, nz = z - cz;
+      const distOuter = (nx/OUTER_X)**2 + (nz/OUTER_Z_CURVE)**2;
+      const distInner = (nx/INNER_X)**2 + (nz/INNER_Z_CURVE)**2;
+      if(distOuter > 1) return true;   // fora do oval externo
+      if(distInner < 1) return true;   // dentro do oval interno
+      return false;
+    }
+
+    // Curva baixo (z > 20): centro (0, 20)
+    if(z > STRAIGHT_Z2){
+      const cx = 0, cz = 20;
+      const nx = x - cx, nz = z - cz;
+      const distOuter = (nx/OUTER_X)**2 + (nz/OUTER_Z_CURVE)**2;
+      const distInner = (nx/INNER_X)**2 + (nz/INNER_Z_CURVE)**2;
+      if(distOuter > 1) return true;
+      if(distInner < 1) return true;
+      return false;
+    }
+
+    return true;
+  }
+
+  // ============================================================
+  // COLETÁVEIS – posicionados na pista oval
+  // ============================================================
+  const collectibleDefs = [
+    // Reta direita
+    { type:'gold', x: 23, z:-12 },
+    { type:'gem',  x: 23, z: 0  },
+    { type:'gold', x: 23, z: 12 },
+    // Reta esquerda
+    { type:'gem',  x:-23, z:-12 },
+    { type:'gold', x:-23, z: 0  },
+    { type:'gem',  x:-23, z: 12 },
+    // Curva topo (centro 0,-20)
+    { type:'gold', x: 0,  z:-46 },
+    { type:'gem',  x: 12, z:-38 },
+    { type:'gold', x:-12, z:-38 },
+    // Curva baixo (centro 0,20)
+    { type:'gem',  x: 0,  z: 46 },
+    { type:'gold', x: 12, z: 38 },
+    { type:'gem',  x:-12, z: 38 },
+  ];
+
+  const collectibles = [];
+
+  collectibleDefs.forEach(def => {
+    const el = document.createElement("a-entity");
+
+    if(def.type === 'gold'){
+      el.innerHTML = `
+        <a-sphere radius="0.38" color="#FFD700" metalness="0.9" roughness="0.1"
+          animation="property:rotation; to:0 360 0; loop:true; dur:1800; easing:linear"
+          animation__bob="property:position; from:0 0.3 0; to:0 0.75 0; loop:true; dur:900; easing:easeInOutSine; dir:alternate">
+        </a-sphere>`;
+    } else {
+      el.innerHTML = `
+        <a-octahedron radius="0.42" color="#7DF9FF" metalness="1" roughness="0.05"
+          animation="property:rotation; to:0 360 0; loop:true; dur:1600; easing:linear"
+          animation__bob="property:position; from:0 0.3 0; to:0 0.8 0; loop:true; dur:850; easing:easeInOutSine; dir:alternate">
+        </a-octahedron>`;
+    }
+
+    el.setAttribute("position", `${def.x} 0.5 ${def.z}`);
+    container.appendChild(el);
+    collectibles.push({ el, x: def.x, z: def.z, type: def.type, active: true });
+  });
+
+  // ============================================================
+  // MEDIAPIPE
+  // ============================================================
+  const ctls = { forward:false, backward:false, left:false, right:false };
+
+  const hands = new Hands({
+    locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
+  });
+  hands.setOptions({
+    maxNumHands:1, modelComplexity:1,
+    minDetectionConfidence:0.7, minTrackingConfidence:0.7,
+  });
+  hands.onResults(results => {
+    ctls.forward = ctls.backward = ctls.right = ctls.left = false;
+    if(results.multiHandLandmarks.length > 0){
+      const hand  = results.multiHandLandmarks[0];
+      const palm  = hand[0];
+      const mid   = hand[9]; // base do dedo médio = centro da palma
+      const dx = mid.x - palm.x;
+      const dy = mid.y - palm.y;
+      if(dx >  0.12) ctls.left    = true;
+      if(dx < -0.12) ctls.right     = true;
+      if(dy < -0.08) ctls.forward  = true;
+      if(dy >  0.08) ctls.backward = true;
+    }
+  });
+
+  const camera = new Camera(videoEl, {
+    onFrame: async () => await hands.send({ image: videoEl }),
+    width:640, height:480,
+  });
+  camera.start();
+
+  // ============================================================
+  // COLISÃO COLETÁVEIS
+  // ============================================================
+  function checkCollectibles(x, z){
+    collectibles.forEach(c => {
+      if(!c.active) return;
+      const d = Math.sqrt((x - c.x)**2 + (z - c.z)**2);
+      if(d < 1.5){
+        c.active = false;
+        // remove permanentemente (sem respawn)
+        c.el.parentNode && c.el.parentNode.removeChild(c.el);
+        if(c.type === 'gold'){ goldCount++; cntGold.textContent = goldCount; }
+        else                 { gemCount++;  cntGem.textContent  = gemCount;  }
+      }
+    });
+  }
+
+  // ============================================================
+  // LOOP
+  // ============================================================
+  function loop(){
+    requestAnimationFrame(loop);
+
+    const oldx = posx, oldz = posz;
+    let dir = 0;
+    if(ctls.forward)  dir =  1;
+    if(ctls.backward) dir = -1;
+
+    if(dir !== 0){
+      if(ctls.left)  angulo += giro * dir;
+      if(ctls.right) angulo -= giro * dir;
+
+      const rad = angulo * Math.PI / 180;
+      posx -= Math.sin(rad) * vel * dir;
+      posz -= Math.cos(rad) * vel * dir;
+
+      rodarot += 5 * dir;
+      rodas.forEach(r => r.setAttribute("rotation", rodarot + " 0 90"));
+    }
+
+    // colisão oval
+    if(foraOval(posx, posz)){ posx = oldx; posz = oldz; }
+
+    // segurança
+    if(Math.abs(posx) > 60 || Math.abs(posz) > 65){ posx = 23; posz = 0; }
+
+    checkCollectibles(posx, posz);
+
+    carro.setAttribute("position", `${posx} 0.5 ${posz}`);
+    carro.setAttribute("rotation", `0 ${angulo} 0`);
+
+    const rad = angulo * Math.PI / 180;
+    const camX = posx + Math.sin(rad) * 8;
+    const camZ = posz + Math.cos(rad) * 8;
+    cam.setAttribute("position", `${camX} 3 ${camZ}`);
+    cam.setAttribute("rotation", `0 ${angulo} 0`);
+  }
+
+  loop();
+};
+</script>
+</body>
+</html>
