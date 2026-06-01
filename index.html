@@ -338,19 +338,24 @@ window.onload = function(){
     minDetectionConfidence:0.7, minTrackingConfidence:0.7,
   });
   hands.onResults(results => {
-    ctls.forward = ctls.backward = ctls.right = ctls.left = false;
-    if(results.multiHandLandmarks.length > 0){
-      const hand  = results.multiHandLandmarks[0];
-      const palm  = hand[0];
-      const mid   = hand[9]; // base do dedo médio = centro da palma
-      const dx = mid.x - palm.x;
-      const dy = mid.y - palm.y;
-      if(dx >  0.12) ctls.left    = true;
-      if(dx < -0.12) ctls.right     = true;
-      if(dy < -0.08) ctls.forward  = true;
-      if(dy >  0.08) ctls.backward = true;
-    }
-  });
+  ctls.forward = ctls.backward = ctls.right = ctls.left = false;
+
+  if(results.multiHandLandmarks.length > 0){
+    const hand  = results.multiHandLandmarks[0];
+    const palm  = hand[0];
+    const mid   = hand[9];
+
+    const dx = mid.x - palm.x;
+    const dy = mid.y - palm.y;
+
+    // invertido por causa da câmera espelhada
+    if(dx >  0.12) ctls.right = true;
+    if(dx < -0.12) ctls.left  = true;
+
+    if(dy < -0.08) ctls.forward  = true;
+    if(dy >  0.08) ctls.backward = true;
+  }
+});
 
   const camera = new Camera(videoEl, {
     onFrame: async () => await hands.send({ image: videoEl }),
