@@ -353,8 +353,8 @@ window.onload = function(){
     const dy = mid.y - palm.y;
 
     // invertido por causa da câmera espelhada
-    if(dx >  0.12) ctls.right = true;
-    if(dx < -0.12) ctls.left  = true;
+    if(dx >  0.12) ctls.left = true;
+    if(dx < -0.12) ctls.right  = true;
 
     if(dy < -0.08) ctls.forward  = true;
     if(dy >  0.08) ctls.backward = true;
@@ -396,8 +396,8 @@ window.onload = function(){
     if(ctls.backward) dir = -1;
 
     if(dir !== 0){
-      if(ctls.left)  angulo += giro * dir;
-      if(ctls.right) angulo -= giro * dir;
+      if(ctls.right)  angulo += giro * dir;
+      if(ctls.left) angulo -= giro * dir;
 
       const rad = angulo * Math.PI / 180;
       posx -= Math.sin(rad) * vel * dir;
