@@ -20,8 +20,8 @@
       background:linear-gradient(to bottom,rgba(0,0,0,0.72) 0%,transparent 100%);
     }
     #cam-box {
-      width:190px; border:2px solid rgba(255,255,255,0.22); border-radius:8px;
-      overflow:hidden; box-shadow:0 0 18px rgba(255,80,0,0.4);
+      width:190px;
+      overflow:hidden; 
     }
     #video {
     width:100%;
@@ -87,8 +87,8 @@
   <!-- ASFALTO RETA ESQUERDA -->
   <a-plane rotation="-90 0 0" position="-23 0.02 0" width="10" height="40" color="#2a2a2a"></a-plane>
 
-  <!-- ASFALTO CURVA TOPO (semicírculo 180°) – aproximado com cilindro oco via dois cilindros -->
-  <!-- Cilindro externo cheio, por cima do interno (grama), formam o anel da pista -->
+  <!-- ASFALTO CURVA DE CIMA -->
+  <!-- cilindro por cima do asfalto, fazendo o molde da pista-->
   <a-cylinder position="0 0.01 -20" radius="28" height="0.04" color="#2a2a2a" segments-radial="64"></a-cylinder>
   <a-cylinder position="0 0.02 -20" radius="18" height="0.05" color="#1a2e1a" segments-radial="64"></a-cylinder>
 
@@ -96,20 +96,20 @@
   <a-cylinder position="0 0.01 20" radius="28" height="0.04" color="#2a2a2a" segments-radial="64"></a-cylinder>
   <a-cylinder position="0 0.02 20" radius="18" height="0.05" color="#1a2e1a" segments-radial="64"></a-cylinder>
 
-  <!-- ILHA CENTRAL (entre as duas retas) -->
+  
   <a-plane rotation="-90 0 0" position="0 0.01 0" width="36" height="40" color="#1a2e1a"></a-plane>
 
-  <!-- LINHAS CENTRAIS AMARELAS  -->
+  <!-- linhas  -->
   <!-- Reta direita -->
-  <a-plane rotation="-90 0 0" position="23 0.04 -10" width="0.35" height="10" color="#FFD700" opacity="0.8"></a-plane>
-  <a-plane rotation="-90 0 0" position="23 0.04 0"   width="0.35" height="10" color="#FFD700" opacity="0.8"></a-plane>
-  <a-plane rotation="-90 0 0" position="23 0.04 10"  width="0.35" height="10" color="#FFD700" opacity="0.8"></a-plane>
+  <a-plane rotation="-90 0 0" position="23 0.04 -10" width="0.35" height="10" color="yellow" opacity="0.8"></a-plane>
+  <a-plane rotation="-90 0 0" position="23 0.04 0"   width="0.35" height="10" color="yellow" opacity="0.8"></a-plane>
+  <a-plane rotation="-90 0 0" position="23 0.04 10"  width="0.35" height="10" color="yellow" opacity="0.8"></a-plane>
   <!-- Reta esquerda -->
-  <a-plane rotation="-90 0 0" position="-23 0.04 -10" width="0.35" height="10" color="#FFD700" opacity="0.8"></a-plane>
-  <a-plane rotation="-90 0 0" position="-23 0.04 0"   width="0.35" height="10" color="#FFD700" opacity="0.8"></a-plane>
-  <a-plane rotation="-90 0 0" position="-23 0.04 10"  width="0.35" height="10" color="#FFD700" opacity="0.8"></a-plane>
+  <a-plane rotation="-90 0 0" position="-23 0.04 -10" width="0.35" height="10" color="yellow" opacity="0.8"></a-plane>
+  <a-plane rotation="-90 0 0" position="-23 0.04 0"   width="0.35" height="10" color="yellow" opacity="0.8"></a-plane>
+  <a-plane rotation="-90 0 0" position="-23 0.04 10"  width="0.35" height="10" color="yellow" opacity="0.8"></a-plane>
 
-  <!-- LINHA DE LARGADA -->
+  <!-- largada -->
   <a-plane rotation="-90 0 0" position="23 0.08 3" width="10" height="0.7" color="white"></a-plane>
   <a-plane rotation="-90 0 0" position="23 0.095 3" width="10" height="0.25" color="red" opacity="0.8"></a-plane>
 
@@ -187,7 +187,7 @@
     <a-cylinder id="roda-te" position="-1 -0.3 1"  radius="0.42" height="0.28" rotation="0 0 90" color="black"></a-cylinder>
   </a-entity>
 
-  <!-- coletáveis injetados por JS -->
+  <!-- coletáveis -->
   <a-entity id="coletaveis"></a-entity>
 
 </a-scene>
@@ -210,7 +210,8 @@ window.onload = function(){
   ];
 
 
-  let posx = 23, posz = 0;
+  let posx = 23;
+  let posz = 0;
   let angulo = 0;
   let rodarot = 0;
   const vel  = 0.08;
@@ -352,7 +353,7 @@ collectibleDefs.forEach(def => {
   camera.start();
 
   // ============================================================
-  // COLISÃO COLETÁVEIS
+  // Interação coletáveis
   // ============================================================
   function checkCollectibles(x, z){
     collectibles.forEach(c => {
@@ -367,9 +368,7 @@ collectibleDefs.forEach(def => {
     });
   }
 
-  // ============================================================
-  // LOOP
-  // ============================================================
+
   function loop(){
     requestAnimationFrame(loop);
 
@@ -390,10 +389,8 @@ collectibleDefs.forEach(def => {
       rodas.forEach(r => r.setAttribute("rotation", rodarot + " 0 90"));
     }
 
-    // colisão oval
     if(foraOval(posx, posz)){ posx = oldx; posz = oldz; }
 
-    // segurança
     if(Math.abs(posx) > 60 || Math.abs(posz) > 65){ posx = 23; posz = 0; }
 
     checkCollectibles(posx, posz);
